@@ -1,8 +1,8 @@
 // AEW_Launcher.cpp : Contains main logic, memory override for AEW v1.0 @ runtime //
 #include "ProcessMain.h"
 #include "ProcessUtils.h"
-#include <iostream>
-//#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup") // Hide Console
+//#include <iostream>
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup") // Hide Console
 #pragma once 
 
 using namespace std;
