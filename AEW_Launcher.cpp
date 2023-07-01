@@ -1,7 +1,8 @@
 // AEW_Launcher.cpp : Contains main logic, memory override for AEW v1.0 @ runtime //
 #include "ProcessMain.h"
 #include "ProcessUtils.h"
-#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup") // Hide Console
+#include <iostream>
+//#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup") // Hide Console
 #pragma once 
 
 using namespace std;
@@ -11,16 +12,24 @@ char	 moduleName[] = "AEWFightForever-Win64-Shipping.exe";
 void UpdateAEWInstruction() {
 	DWORD64 modBase = pMeta.clientBase;
 	uint8_t assemblyData;
-	DWORD64 functionPtr = modBase + /* func address */ 0x1036254;
-
+	DWORD64 integFunctionPtr = modBase + /* func address */ 0x1036254;
+	DWORD64 packFunctionPtr = modBase + /* func address */ 0x2C458FF;
 	// Check Memory
-	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(functionPtr), &assemblyData, sizeof(assemblyData), NULL);
 
+	// Integrity Override
+	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(integFunctionPtr), &assemblyData, sizeof(assemblyData), NULL);
 	if (assemblyData == 0x75) {
 		assemblyData = 0x74; // Changes "JNE" instruction to "JE", bypassing process integrity check
-		WriteProcessMemory(pMeta.pHandle, (LPVOID)(functionPtr), &assemblyData, sizeof(assemblyData), NULL);
+		WriteProcessMemory(pMeta.pHandle, (LPVOID)(integFunctionPtr), &assemblyData, sizeof(assemblyData), NULL);
 	}
 
+	// PAK override
+	uint32_t assemblyDataPAK;
+	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(packFunctionPtr), &assemblyDataPAK, sizeof(assemblyDataPAK), NULL);
+	if (assemblyDataPAK == 0x4C304688) {
+		assemblyDataPAK = 0x4C909090; // NOP override
+		WriteProcessMemory(pMeta.pHandle, (LPVOID)(packFunctionPtr), &assemblyDataPAK, sizeof(assemblyDataPAK), NULL);
+	}
 }
 
 void PatchAEWProcess() {
