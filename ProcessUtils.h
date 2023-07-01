@@ -64,3 +64,37 @@ static bool isRunning(LPCSTR pName)
 		return false;
 	}
 }
+
+
+DWORD GetProcessIdFromWindow(const char* windowTitle, const char* exeName)
+{
+	DWORD processId = 0;
+
+	HWND hwnd = FindWindowA(NULL, windowTitle);
+	if (hwnd != NULL)
+	{
+		GetWindowThreadProcessId(hwnd, &processId);
+
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processId);
+		if (hSnapshot != INVALID_HANDLE_VALUE)
+		{
+			MODULEENTRY32 moduleEntry;
+			moduleEntry.dwSize = sizeof(MODULEENTRY32);
+
+			if (Module32First(hSnapshot, &moduleEntry))
+			{
+				if (_stricmp(moduleEntry.szModule, exeName) != 0)
+				{
+					// Executable name does not match
+					processId = 0;
+					printf( "\n %s" ,moduleEntry.szModule);
+				}
+			}
+
+			CloseHandle(hSnapshot);
+		}
+	}
+
+	return processId;
+}
+

@@ -45,4 +45,46 @@ public:
 
 		return pMeta;
 	}
+
+	static ProcessMeta GetProcessIdFromExeName(const char* exeName)
+	{
+		DWORD processId = 0;
+		ProcessMeta pMeta = ProcessMeta{ 0, 0, 0 };
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hSnapshot != INVALID_HANDLE_VALUE)
+		{
+			PROCESSENTRY32 processEntry;
+			processEntry.dwSize = sizeof(PROCESSENTRY32);
+
+			if (Process32First(hSnapshot, &processEntry))
+			{
+				while (Process32Next(hSnapshot, &processEntry))
+				{
+					const char* processExeName = strrchr(processEntry.szExeFile, '\\');
+					if (processExeName != nullptr)
+						processExeName++; // Move past the backslash
+					else
+						processExeName = processEntry.szExeFile; // No backslash found, use the full name
+
+					if (_stricmp(processExeName, exeName) == 0)
+					{
+						processId = processEntry.th32ProcessID;
+						pMeta = ProcessMeta{ processId, hSnapshot, 0 };
+						break;
+					}
+				}
+			}
+
+			CloseHandle(hSnapshot);
+		}
+
+		return pMeta;
+	}
+
+	static HANDLE GetProcessHandle(DWORD processId, DWORD dwDesiredAccess)
+	{
+		HANDLE hProcess = OpenProcess(dwDesiredAccess, FALSE, processId);
+		return hProcess;
+	}
+
 };
