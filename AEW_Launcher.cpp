@@ -9,31 +9,40 @@ using namespace std;
 ProcessMain::ProcessMeta pMeta = { 0,0,0 };
 char	 moduleName[] = "AEWFightForever-Win64-Shipping.exe";
 
-void UpdateAEWInstruction() {
-	DWORD64 modBase = pMeta.clientBase;
-	uint8_t assemblyData;
-	DWORD64 integFunctionPtr = modBase + /* func address */ 0x1036254;
-	DWORD64 packFunctionPtr = modBase + /* func address */ 0x2C458FF;
+void UpdateAEWModule() {
+	DWORD64 integFunctionPtr = pMeta.clientBase + 0x1036254; /* Original ASM terminates if AntiCheat interface is disabled */
+	DWORD64 packFunctionPtr = pMeta.clientBase + 0x2C458FF; /* Original ASM defines external PAK mounts */
+	DWORD64 sigFunctionPtr = pMeta.clientBase +  0x15FE4A2; /* Original ASM skips PAK if no SIG file is found */
 
-	// Check Memory
-	DWORD assemblyDataPAK;
+	// Custom Assembly
+	uint8_t asmDataAntiCheat;
+	uint32_t asmDataPAK;
+	uint16_t asmDataSig;
 
 	// Integrity Override
-	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(integFunctionPtr), &assemblyData, sizeof(assemblyData), NULL);
-	if (assemblyData == 0x74) {
-		assemblyData = 0x75; // Changes "JNE" instruction to "JE", bypassing process integrity check
-		WriteProcessMemory(pMeta.pHandle, (LPVOID)(integFunctionPtr), &assemblyData, sizeof(assemblyData), NULL);
+	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(integFunctionPtr), &asmDataAntiCheat, sizeof(asmDataAntiCheat), NULL);
+	if (asmDataAntiCheat == 0x75) {
+		asmDataAntiCheat = 0x74; // Changes "JNE" instruction to "JE"
+		WriteProcessMemory(pMeta.pHandle, (LPVOID)(integFunctionPtr), &asmDataAntiCheat, sizeof(asmDataAntiCheat), NULL);
 	}
 
 	// PAK override	
-	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(packFunctionPtr), &assemblyDataPAK, sizeof(assemblyDataPAK), NULL);
-	if (assemblyDataPAK == 0x4C304688) {
-		assemblyDataPAK = 0x4C909090; // NOP override
-		WriteProcessMemory(pMeta.pHandle, (LPVOID)(packFunctionPtr), &assemblyDataPAK, sizeof(assemblyDataPAK), NULL);
+	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(packFunctionPtr), &asmDataPAK, sizeof(asmDataPAK), NULL);
+	if (asmDataPAK == 0x4C304688) {
+		asmDataPAK = 0x4C909090; // NOPs flag, allows External PAKs
+		WriteProcessMemory(pMeta.pHandle, (LPVOID)(packFunctionPtr), &asmDataPAK, sizeof(asmDataPAK), NULL);
+	}
+
+	// SIG override	
+	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(sigFunctionPtr), &asmDataSig, sizeof(asmDataSig), NULL);
+	if (asmDataSig == 0x840F) {
+		DWORD64 asmQWORD = 0x8B4D90000000A7E9; // Alters "JE" instruction to "JMP", bypasses missing sig method
+		WriteProcessMemory(pMeta.pHandle, (LPVOID)(sigFunctionPtr), &asmQWORD, sizeof(asmQWORD), NULL);
 	}
 	
 	CloseHandle(pMeta.pHandle);
 }
+
 
 void PatchAEWProcess() {
 	//Get Base Address
@@ -42,7 +51,7 @@ void PatchAEWProcess() {
 	}
 
 	// Overrides process terminate functions
-	UpdateAEWInstruction();
+	UpdateAEWModule();
 }
 
 
@@ -50,11 +59,10 @@ void GetAEWProcess() {
 	DWORD pID = 0x0;
 	HWND hGameWindow;
 	HANDLE pHandle;
-	char EACGAme[] = "AEWFightForever.exe";
 
 	// Get EXE path
 	const std::string cCurrentPath = getexepath();
-	std::string gamePath = reDir(cCurrentPath, EACGAme);
+	std::string gamePath = reDir(cCurrentPath, moduleName);
 
 	// Open Game
 	ProcessMain::LaunchProcessHandle(gamePath.c_str());
