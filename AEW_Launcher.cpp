@@ -10,9 +10,10 @@ ProcessMain::ProcessMeta pMeta = { 0,0,0 };
 char	 moduleName[] = "AEWFightForever-Win64-Shipping.exe";
 
 void UpdateAEWModule() {
-	DWORD64 integFunctionPtr = pMeta.clientBase + 0x1036254; /* Original ASM terminates if AntiCheat interface is disabled */
-	DWORD64 packFunctionPtr = pMeta.clientBase + 0x2C458FF; /* Original ASM defines external PAK mounts */
-	DWORD64 sigFunctionPtr = pMeta.clientBase +  0x15FE4A2; /* Original ASM skips PAK if no SIG file is found */
+	// (As of 7/5 update)
+	DWORD64 integFunctionPtr = pMeta.clientBase + 0x10360D4; /* Original ASM terminates if AntiCheat interface is disabled */
+	DWORD64 packFunctionPtr = pMeta.clientBase + 0x2C45D6F; /* Original ASM defines external PAK mounts */
+	DWORD64 sigFunctionPtr = pMeta.clientBase + 0x15FE912; /* Original ASM skips PAK if no SIG file is found */
 
 	// Custom Assembly
 	uint8_t asmDataAntiCheat;
@@ -75,11 +76,9 @@ void GetAEWProcess() {
 	pMeta.pHandle = ProcessMain::GetProcessHandle(pMeta.processID, PROCESS_ALL_ACCESS);
 }
 
+
 int main()
 {
-
 	GetAEWProcess();
 	PatchAEWProcess();
 }
-
-
