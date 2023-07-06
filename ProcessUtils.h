@@ -98,3 +98,61 @@ DWORD GetProcessIdFromWindow(const char* windowTitle, const char* exeName)
 	return processId;
 }
 
+#include <fstream>
+#include <iostream>
+
+static DWORD GetRVAFromFileOffset(const char* filePath, DWORD fileOffset) {
+	std::ifstream file(filePath, std::ios::binary | std::ios::ate);
+	if (!file.is_open()) {
+		std::cerr << "Failed to open the file." << std::endl;
+		return 0;
+	}
+
+	std::streamsize fileSize = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	IMAGE_DOS_HEADER dosHeader;
+	file.read(reinterpret_cast<char*>(&dosHeader), sizeof(IMAGE_DOS_HEADER));
+
+	if (dosHeader.e_magic != IMAGE_DOS_SIGNATURE) {
+		std::cerr << "Invalid DOS signature." << std::endl;
+		file.close();
+		return 0;
+	}
+
+	file.seekg(dosHeader.e_lfanew, std::ios::beg);
+
+	IMAGE_NT_HEADERS32 ntHeaders;
+	file.read(reinterpret_cast<char*>(&ntHeaders), sizeof(IMAGE_NT_HEADERS32));
+
+	if (ntHeaders.Signature != IMAGE_NT_SIGNATURE) {
+		std::cerr << "Invalid PE signature." << std::endl;
+		file.close();
+		return 0;
+	}
+
+	DWORD sectionOffset = dosHeader.e_lfanew + offsetof(IMAGE_NT_HEADERS32, OptionalHeader) +
+		ntHeaders.FileHeader.SizeOfOptionalHeader;
+
+	file.seekg(sectionOffset, std::ios::beg);
+
+	IMAGE_SECTION_HEADER sectionHeader;
+	DWORD sectionIndex = 0;
+
+	while (sectionIndex < ntHeaders.FileHeader.NumberOfSections) {
+		file.read(reinterpret_cast<char*>(&sectionHeader), sizeof(IMAGE_SECTION_HEADER));
+
+		if (fileOffset >= sectionHeader.PointerToRawData &&
+			fileOffset < (sectionHeader.PointerToRawData + sectionHeader.SizeOfRawData)) {
+			DWORD rva = sectionHeader.VirtualAddress + (fileOffset - sectionHeader.PointerToRawData);
+			file.close();
+			return rva;
+		}
+
+		sectionIndex++;
+	}
+
+	std::cerr << "File offset not found in any section." << std::endl;
+	file.close();
+	return 0;
+}

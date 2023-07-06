@@ -156,6 +156,7 @@
   <ItemGroup>
     <ClInclude Include="ProcessMain.h" />
     <ClInclude Include="ProcessUtils.h" />
+    <ClInclude Include="ReaderUtils.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
