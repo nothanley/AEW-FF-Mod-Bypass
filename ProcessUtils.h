@@ -101,6 +101,7 @@ DWORD GetProcessIdFromWindow(const char* windowTitle, const char* exeName)
 #include <fstream>
 #include <iostream>
 
+
 static DWORD GetRVAFromFileOffset(const char* filePath, DWORD fileOffset) {
 	std::ifstream file(filePath, std::ios::binary | std::ios::ate);
 	if (!file.is_open()) {
@@ -155,4 +156,5 @@ static DWORD GetRVAFromFileOffset(const char* filePath, DWORD fileOffset) {
 	std::cerr << "File offset not found in any section." << std::endl;
 	file.close();
 	return 0;
+
 }
