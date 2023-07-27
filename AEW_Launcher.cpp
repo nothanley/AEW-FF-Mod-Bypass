@@ -2,76 +2,48 @@
 #include "ProcessMain.h"
 #include "ReaderUtils.h"
 #include <iostream>
-#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup") // Hide Console
+//#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup") // Hide Console
 #pragma once 
 
 using namespace std;
 ProcessMain::ProcessMeta pMeta = { 0,0,0 };
 char	 moduleName[] = "AEWFightForever-Win64-Shipping.exe";
 
-void UpdateAEWModule( DWORD integRVA, DWORD packRVA, DWORD sigRVA ) {
-	DWORD64 integFunctionPtr = pMeta.clientBase + integRVA; /* Original ASM terminates if AntiCheat interface is disabled */
-	DWORD64 packFunctionPtr = pMeta.clientBase + packRVA; /* Original ASM defines external PAK mounts */
-	DWORD64 sigFunctionPtr = pMeta.clientBase + sigRVA; /* Original ASM skips PAK if no SIG file is found */
 
-	// Custom Assembly
-	uint8_t asmDataAntiCheat;
-	uint32_t asmDataPAK;
-	uint16_t asmDataSig;
-
-	// Integrity Override
-	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(integFunctionPtr), &asmDataAntiCheat, sizeof(asmDataAntiCheat), NULL);
-	if (asmDataAntiCheat == 0x75 || asmDataAntiCheat == 0x74) {
-		asmDataAntiCheat = 0xEB; // Changes "JNE" instruction to "JE"
-		WriteProcessMemory(pMeta.pHandle, (LPVOID)(integFunctionPtr), &asmDataAntiCheat, sizeof(asmDataAntiCheat), NULL);
-	}
-
-	// PAK override	
-	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(packFunctionPtr), &asmDataPAK, sizeof(asmDataPAK), NULL);
-	if (asmDataPAK == 0x4C304688) {
-		asmDataPAK = 0x4C909090; // NOPs flag, allows External PAKs
-		WriteProcessMemory(pMeta.pHandle, (LPVOID)(packFunctionPtr), &asmDataPAK, sizeof(asmDataPAK), NULL);
-	}
-
-	// SIG override	
-	ReadProcessMemory(pMeta.pHandle, (LPCVOID)(sigFunctionPtr), &asmDataSig, sizeof(asmDataSig), NULL);
-	if (asmDataSig == 0x840F) {
-		DWORD64 asmQWORD = 0x8B4D90000000A7E9; // Alters "JE" instruction to "JMP", bypasses missing sig method
-		WriteProcessMemory(pMeta.pHandle, (LPVOID)(sigFunctionPtr), &asmQWORD, sizeof(asmQWORD), NULL);
-	}
+void patchAEWExecutable(DWORD interfaceOffset, DWORD packOffset, DWORD sigOffset ) {
 	
-	CloseHandle(pMeta.pHandle);
-}
+	// Create EXE backup
+	std::cout << "\n\nCreating backup...";
+	createBackup(moduleName);
+	std::vector<uint8_t> data;
 
+	std::cout << "\nPatching file...";
 
-
-void GetAEWProcess() {
-	DWORD pID = 0x0;
-	HWND hGameWindow;
-	HANDLE pHandle;
-
-	// Get EXE path
-	const std::string cCurrentPath = getexepath();
-	std::string gamePath = reDir(cCurrentPath, moduleName);
-
-	// Open Game
-	ProcessMain::LaunchProcessHandle(gamePath.c_str());
-
-	// Get Process ID using exe Name
-	while (pMeta.processID == 0x0) {
-		pMeta = ProcessMain::GetProcessIdFromExeName(moduleName);
+	//Patch 1
+	data = { 0xEB };
+	if (!PatchBytesAtAddress(moduleName, data, interfaceOffset)) {
+		std::cout << "\nCould not patch executable...";
+		system("pause");
 	}
 
-	pMeta.pHandle = ProcessMain::GetProcessHandle(pMeta.processID, PROCESS_ALL_ACCESS);
+
+	//Patch 2
+	data = { 0x90, 0x90, 0x90, 0x4C };
+	PatchBytesAtAddress(moduleName, data, packOffset);
+
+	//Patch 3
+	data = { 0xE9 , 0xA7, 0x00 , 0x00, 0x00 , 0x90, 0x4D , 0x8B };
+	PatchBytesAtAddress(moduleName, data, sigOffset);
+
+	std::cout << "\n\n\nPatcher completed succesfully\n";
+	system("pause");
+
 }
-
-
-
-
 
 int main()
 {
 	// Search for local offsets
+	std::cout << "\nLocating data...";
 	DWORD interfaceOffset = ReaderUtils::GetInterfaceOffset(moduleName);
 	DWORD packOffset = ReaderUtils::GetPackOffset(moduleName);
 	DWORD sigOffset = ReaderUtils::GetSigOffset(moduleName);
@@ -80,24 +52,11 @@ int main()
 		return 0;
 	}
 
-	// Collect all RVA's using offset
-	interfaceOffset = GetRVAFromFileOffset(moduleName, interfaceOffset);
-	packOffset = GetRVAFromFileOffset(moduleName, packOffset);
-	sigOffset = GetRVAFromFileOffset(moduleName, sigOffset);
-
-	std::cout << "\n\nRVA: " << std::hex << interfaceOffset << std::endl;
-	std::cout << "RVA: " << std::hex << packOffset << std::endl;
-	std::cout << "RVA: " << std::hex << sigOffset << std::endl;
+	//std::cout << "\n\nRVA: " << std::hex << interfaceOffset << std::endl;
+	//std::cout << "RVA: " << std::hex << packOffset << std::endl;
+	//std::cout << "RVA: " << std::hex << sigOffset << std::endl;
 
 	// Launch process and acquire handle
-	GetAEWProcess();
+	patchAEWExecutable(interfaceOffset,packOffset,sigOffset);
 	
-	//Get Base Address
-	while (pMeta.clientBase == 0x0) {
-		pMeta.clientBase = dwGetModuleBaseAddress(_T(moduleName), pMeta.processID);
-	}
-
-	// Overrides process terminate functions
-	UpdateAEWModule( interfaceOffset, packOffset, sigOffset );
-
 }

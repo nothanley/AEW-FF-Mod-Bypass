@@ -148,9 +148,9 @@ public:
 	static DWORD GetPackOffset(char moduleName[]) {
 
 		DWORD offset = ReaderUtils::SearchFileForPackFunc(moduleName);
-		std::cout << "\n\nAddress: " << std::hex << offset;
+		//std::cout << "\n\nAddress: " << std::hex << offset;
 		if (offset == 0) {
-			std::cout << "No Addresses found.";
+			std::cout << "\nCould not find patch address.";
 		}
 		return offset;
 	}
@@ -158,18 +158,18 @@ public:
 	static DWORD GetInterfaceOffset(char moduleName[]) {
 
 		DWORD offset = ReaderUtils::SearchFileForIntegFunc(moduleName);
-		std::cout << "\n\nAddress: " << std::hex << offset;
+		//std::cout << "\n\nAddress: " << std::hex << offset;
 		if (offset == 0) {
-			std::cout << "No Addresses found.";
+			std::cout << "\nCould not find patch address.";
 		}
 		return offset;
 	}
 
 	static DWORD GetSigOffset(char moduleName[]) {
 		DWORD offset = ReaderUtils::SearchFileForSigFunc(moduleName);
-		std::cout << "\n\nAddress: " << std::hex << offset - 2;
+		//std::cout << "\n\nAddress: " << std::hex << offset - 2;
 		if (offset == 0) {
-			std::cout << "No Addresses found.";
+			std::cout << "\nCould not find patch address.";
 		}
 		return offset - 2;
 	}

@@ -85,7 +85,6 @@ DWORD GetProcessIdFromWindow(const char* windowTitle, const char* exeName)
 			{
 				if (_stricmp(moduleEntry.szModule, exeName) != 0)
 				{
-					// Executable name does not match
 					processId = 0;
 					printf( "\n %s" ,moduleEntry.szModule);
 				}
@@ -101,6 +100,27 @@ DWORD GetProcessIdFromWindow(const char* windowTitle, const char* exeName)
 #include <fstream>
 #include <iostream>
 
+static void createBackup(const std::string& filepath) {
+
+	std::ifstream inputFile(filepath, std::ios::binary);
+	if (!inputFile) {
+		std::cerr << "\nError opening file: " << filepath << std::endl;
+		return;
+	}
+
+	std::string backupFilePath = filepath + ".bak";
+	std::ofstream outputFile(backupFilePath, std::ios::binary);
+	if (!outputFile) {
+		std::cerr << "\nError creating backup file: " << backupFilePath << std::endl;
+		return;
+	}
+
+	outputFile << inputFile.rdbuf();
+	inputFile.close();
+	outputFile.close();
+
+	std::cout << "\nBackup created: " << backupFilePath << std::endl;
+}
 
 static DWORD GetRVAFromFileOffset(const char* filePath, DWORD fileOffset) {
 	std::ifstream file(filePath, std::ios::binary | std::ios::ate);
@@ -157,4 +177,20 @@ static DWORD GetRVAFromFileOffset(const char* filePath, DWORD fileOffset) {
 	file.close();
 	return 0;
 
+}
+
+// Function to overwrite bytes in a file at a given address
+bool PatchBytesAtAddress(const std::string& filepath, const std::vector<unsigned char>& data, std::streampos address) {
+
+	std::fstream file(filepath, std::ios::in | std::ios::out | std::ios::binary);
+	if (!file) {
+		std::cerr << "\nError: Unable to open file: " << filepath << std::endl;
+		return false;
+	}
+
+	file.seekp(address, std::ios::beg);
+	file.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+	file.close();
+	return true;
 }
